@@ -25,6 +25,41 @@ fi
 
 WEB_PORT="${WEB_PORT:-5173}"
 
+# 强制释放占用端口
+if command -v lsof >/dev/null 2>&1; then
+  PIDS=$(lsof -t -i :"$WEB_PORT" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ')
+  if [ -n "$PIDS" ]; then
+    log_front "port_kill_attempt" "port=$WEB_PORT" "$PIDS"
+    kill -9 $PIDS 2>/dev/null || true
+    log_front "port_kill_done" "port=$WEB_PORT" "$PIDS"
+    sleep 1
+  fi
+elif command -v nc >/dev/null 2>&1; then
+  if nc -z localhost "$WEB_PORT" >/dev/null 2>&1; then
+    log_front "port_kill_skipped_nc_detected" "port=$WEB_PORT"
+    echo "Port $WEB_PORT seems in use; please free it or set WEB_PORT." >&2
+    exit 1
+  fi
+else
+  log_front "port_kill_skipped_no_tool" "port=$WEB_PORT"
+fi
+
+if command -v lsof >/dev/null 2>&1; then
+  if lsof -i :"$WEB_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    log_front "port_still_in_use" "port=$WEB_PORT"
+    echo "Port $WEB_PORT is still in use. Stop the existing process or change WEB_PORT." >&2
+    exit 1
+  fi
+elif command -v nc >/dev/null 2>&1; then
+  if nc -z localhost "$WEB_PORT" >/dev/null 2>&1; then
+    log_front "port_still_in_use" "port=$WEB_PORT"
+    echo "Port $WEB_PORT is still in use. Stop the existing process or change WEB_PORT." >&2
+    exit 1
+  fi
+else
+  log_front "port_check_skipped" "port=$WEB_PORT"
+fi
+
 if [ ! -d "web/node_modules" ]; then
   log_front "install_deps"
   echo "Installing frontend dependencies (first run only)..."

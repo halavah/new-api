@@ -16,10 +16,9 @@ if %errorlevel% neq 0 (
   exit /b 1
 )
 
-for /f %%i in ('netstat -ano ^| findstr ":%PORT%"') do (
-  echo Port %PORT% is in use. Stop the existing process or change PORT.
-  popd
-  exit /b 1
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT% " ^| findstr LISTEN') do (
+  echo Killing process on port %PORT% (PID %%p)...
+  taskkill /F /PID %%p >nul 2>nul
 )
 
 echo Starting backend...

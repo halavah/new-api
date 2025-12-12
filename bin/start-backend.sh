@@ -18,16 +18,35 @@ log_backend() {
 PORT="${PORT:-3000}"
 log_backend "entry" "port=$PORT" "$@"
 
+# 强制释放占用端口
+if command -v lsof >/dev/null 2>&1; then
+  PIDS=$(lsof -t -i :"$PORT" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ')
+  if [ -n "$PIDS" ]; then
+    log_backend "port_kill_attempt" "port=$PORT" "$PIDS"
+    kill -9 $PIDS 2>/dev/null || true
+    log_backend "port_kill_done" "port=$PORT" "$PIDS"
+    sleep 1
+  fi
+elif command -v nc >/dev/null 2>&1; then
+  if nc -z localhost "$PORT" >/dev/null 2>&1; then
+    log_backend "port_kill_skipped_nc_detected" "port=$PORT"
+    echo "Port $PORT seems in use; please free it or set PORT." >&2
+    exit 1
+  fi
+else
+  log_backend "port_kill_skipped_no_tool" "port=$PORT"
+fi
+
 if command -v lsof >/dev/null 2>&1; then
   if lsof -i :"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-    log_backend "port_in_use" "port=$PORT"
-    echo "Port $PORT is in use. Stop the existing process or change PORT." >&2
+    log_backend "port_still_in_use" "port=$PORT"
+    echo "Port $PORT is still in use. Stop the existing process or change PORT." >&2
     exit 1
   fi
 elif command -v nc >/dev/null 2>&1; then
   if nc -z localhost "$PORT" >/dev/null 2>&1; then
-    log_backend "port_in_use" "port=$PORT"
-    echo "Port $PORT is in use. Stop the existing process or change PORT." >&2
+    log_backend "port_still_in_use" "port=$PORT"
+    echo "Port $PORT is still in use. Stop the existing process or change PORT." >&2
     exit 1
   fi
 else

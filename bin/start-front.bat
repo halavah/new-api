@@ -16,6 +16,11 @@ if %errorlevel% neq 0 (
 
 if "%WEB_PORT%"=="" set WEB_PORT=5173
 
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%WEB_PORT% " ^| findstr LISTEN') do (
+  echo Killing process on port %WEB_PORT% (PID %%p)...
+  taskkill /F /PID %%p >nul 2>nul
+)
+
 if not exist web\node_modules (
   echo Installing frontend dependencies (first run only)...
   pushd web
