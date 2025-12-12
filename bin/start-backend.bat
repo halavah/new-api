@@ -7,9 +7,17 @@ set "SCRIPT_DIR=%~dp0"
 set "ROOT_DIR=%SCRIPT_DIR%.."
 pushd "%ROOT_DIR%"
 
+if "%PORT%"=="" set "PORT=3000"
+
 where go >nul 2>nul
 if %errorlevel% neq 0 (
   echo Go not found, please install Go toolchain
+  popd
+  exit /b 1
+)
+
+for /f %%i in ('netstat -ano ^| findstr ":%PORT%"') do (
+  echo Port %PORT% is in use. Stop the existing process or change PORT.
   popd
   exit /b 1
 )

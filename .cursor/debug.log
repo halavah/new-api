@@ -1,0 +1,2 @@
+{"sessionId":"debug-session","runId":"pre-fix","hypothesisId":"H1","location":"bin/start-backend.sh","message":"entry","data":{"cwd":"/Volumes/Samsung/software_yare/aquar-newapi","args":"entry"},"timestamp":17655323613N}
+{"sessionId":"debug-session","runId":"pre-fix","hypothesisId":"H1","location":"bin/start-backend.sh","message":"starting_backend","data":{"cwd":"/Volumes/Samsung/software_yare/aquar-newapi","args":"starting_backend"},"timestamp":17655323613N}
