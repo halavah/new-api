@@ -1,8 +1,10 @@
 #!/bin/bash
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$ROOT_DIR"
+# Navigate to the directory where the script is located
+cd "$(dirname "$0")"
+
+# Go back to project root directory
+cd ..
 
 # Get current branch name
 echo "Detecting current Git branch..."
@@ -33,10 +35,10 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
-# Commit changes with timestamped message
+# Commit changes with timestamped message (format: YYYYMMDD_HHMMSS)
 timestamp=$(date +"%Y%m%d_%H%M%S")
 echo "Committing changes with timestamp: $timestamp..."
-git commit -m "$timestamp" --no-verify
+git commit -m "$timestamp"
 if [ $? -ne 0 ]; then
     echo "Failed to commit changes."
     exit 1
