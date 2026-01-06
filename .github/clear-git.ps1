@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 
 # ============================================================================
 # Git Compression Tool (压缩优化 .git 目录 - PowerShell)

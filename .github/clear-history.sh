@@ -145,6 +145,10 @@ backup_gitignore_files() {
                 # Use find to locate files matching the pattern
                 while IFS= read -r -d '' file; do
                     if [ -e "$file" ] || [ -L "$file" ]; then
+                        # Skip .git directory to avoid infinite nesting
+                        if [[ "$file" == .git/* ]]; then
+                            continue
+                        fi
                         # Create relative path for backup
                         rel_path="${file#./}"
                         backup_path="$BACKUP_DIR/$rel_path"
@@ -205,8 +209,8 @@ restore_gitignore_files() {
         done < "$BACKUP_DIR/backup_log.txt"
     else
         echo "No backup log found. Copying all backup files..."
-        # Fallback: copy everything from backup
-        (cd "$BACKUP_DIR" && find . -mindepth 1 -exec cp -r {} "../" \;)
+        # Fallback: copy everything from backup (excluding .git directory)
+        (cd "$BACKUP_DIR" && find . -mindepth 1 -not -name ".git" -exec cp -r {} "../" \;)
     fi
     # Cleanup backup directory
     rm -rf "$BACKUP_DIR"

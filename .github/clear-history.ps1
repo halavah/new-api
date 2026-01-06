@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 
 # ============================================================================
 # Git History Cleanup Tool (可配置保留提交数量 - PowerShell)
@@ -171,6 +171,11 @@ function Backup-GitIgnoreFiles {
 
                     foreach ($file in $files) {
                         if ($file.Exists) {
+                            # Skip .git directory to avoid infinite nesting
+                            if ($file.FullName -like "*\.git\*") {
+                                continue
+                            }
+
                             # Create relative path for backup
                             $relPath = $file.FullName.Replace((Get-Location).Path, "").TrimStart("\")
                             $backupPath = Join-Path $backupDir $relPath
@@ -255,8 +260,14 @@ function Restore-GitIgnoreFiles {
         }
     } else {
         Write-Host "No backup log found. Copying all backup files..." -ForegroundColor Yellow
-        # Fallback: copy everything from backup
+        # Fallback: copy everything from backup (excluding .git directory)
         Get-ChildItem -Path $backupDir | ForEach-Object {
+            $itemName = $_.Name
+            # Skip .git directory to avoid infinite loops
+            if ($itemName -eq ".git") {
+                Write-Host "Skipping .git directory in backup" -ForegroundColor Yellow
+                return
+            }
             Copy-Item -Path $_.FullName -Destination ".\" -Recurse -Force
         }
     }
