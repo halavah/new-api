@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 
 # ============================================================================
 # Git Deploy Tool (自动提交推送 - PowerShell)
@@ -16,20 +16,6 @@
 #        * 无未推送提交：仅拉取
 #   4. 自动处理远程更新
 #
-# 强制同步逻辑（当 git pull 失败时自动触发）：
-#   ⚠️  检测到 Pull 失败 → 判断为远程历史可能被截断/重写
-#   🔄 自动强制同步流程（在独立进程中执行）：
-#      1. 切换到项目根目录的上一级目录（避免脚本自己被删除）
-#      2. git fetch origin          - 获取远程最新状态
-#      3. git reset --hard origin/分支 - 强制重置到远程分支
-#      4. git clean -fd             - 删除所有未跟踪的文件
-#   ✅ 结果：本地完全覆盖为远程状态，确保与远程完全一致
-#   🛡️  脚本保护：从父目录执行，避免脚本文件被删除导致执行失败
-#   💡 应用场景：
-#      - 远程执行了 force push（如历史清理、分支重置）
-#      - 远程历史被截断或重写（unrelated histories）
-#      - 本地分支与远程完全不一致需要强制对齐
-#
 # 运行方式：
 #   .\deploy.ps1
 #
@@ -41,72 +27,14 @@
 #   - 快速保存和同步代码更改
 #   - 自动化日常提交推送操作
 #   - 确保本地和远程保持同步
-#   - 自动处理远程历史被强制推送的情况
 #
 # 注意事项：
 #   - 会提交所有未暂存的更改
 #   - 提交信息为时间戳，不包含详细描述
+#   - 如果拉取失败，需要手动解决冲突后重新运行
 #   - 不会执行强制推送，保证远程历史安全
 #   - 执行失败时会暂停3秒供查看错误信息
-#   ⚠️  强制同步会完全覆盖本地更改和未跟踪文件
-#   ⚠️  触发强制同步时，本地未提交的更改将会丢失
-#   💡 如需保留本地更改，请在运行前先提交或备份
 # ============================================================================
-
-# Function to safely pull with fallback to force reset
-function Invoke-SafePull {
-    param([string]$Branch)
-
-    Write-Host "Pulling latest changes from origin/$Branch..." -ForegroundColor Cyan
-    git pull origin $Branch
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "⚠️  Pull failed. Detected possible history divergence." -ForegroundColor Yellow
-        Write-Host "🔄 Initiating detached force sync..." -ForegroundColor Cyan
-        Write-Host "The script will now close to allow safe file overwrites." -ForegroundColor Gray
-        Write-Host ""
-
-        # Get the parent directory of the project root (to avoid script being deleted)
-        # Script is at: PROJECT_ROOT/.github/deploy.ps1
-        # $PSScriptRoot is PROJECT_ROOT/.github
-        # Parent of $PSScriptRoot is PROJECT_ROOT
-        # Parent of PROJECT_ROOT is where we want to start
-        $projectRoot = Resolve-Path "$PSScriptRoot\.."
-        $parentDir = Split-Path -Parent $projectRoot
-        $projectDirName = Split-Path -Leaf $projectRoot
-
-        $command = "
-            Write-Host '🔄 Force Syncing in detached process...' -ForegroundColor Cyan;
-            Set-Location '$parentDir';
-            Write-Host 'Changed to parent directory: $parentDir' -ForegroundColor Gray;
-            Write-Host 'Fetching origin...' -ForegroundColor Gray;
-            cd '$projectDirName';
-            git fetch origin;
-            if (`$?) {
-                Write-Host 'Resetting to origin/$Branch...' -ForegroundColor Gray;
-                git reset --hard origin/$Branch;
-                Write-Host 'Cleaning untracked files...' -ForegroundColor Gray;
-                git clean -fd;
-                Write-Host '✅ Sync Complete! You can close this window.' -ForegroundColor Green;
-                Read-Host 'Press Enter to exit';
-            } else {
-                Write-Host '❌ Fetch failed.' -ForegroundColor Red;
-                Read-Host 'Press Enter to exit';
-            }
-        "
-
-        # Start a new PowerShell process to run the command and exit this one immediately
-        # Use -EncodedCommand to safely pass multi-line commands
-        $encodedCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
-        Start-Process powershell -ArgumentList "-NoExit", "-EncodedCommand", $encodedCommand
-
-        # Exit this script immediately so it doesn't crash when its file is deleted
-        exit
-    }
-
-    return $true
-}
 
 # Navigate to project root
 Set-Location "$PSScriptRoot\.."
@@ -141,9 +69,10 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "Found unpushed commits. Syncing with remote..." -ForegroundColor Yellow
 
         # Pull first
-        $pullSuccess = Invoke-SafePull -Branch $currentBranch
-        if (-not $pullSuccess) {
-            Write-Host "Failed to sync with remote." -ForegroundColor Red
+        Write-Host "Pulling latest changes from origin/$currentBranch..." -ForegroundColor Cyan
+        git pull origin $currentBranch
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Failed to pull changes." -ForegroundColor Red
             Start-Sleep -Seconds 3
             return
         }
@@ -163,10 +92,8 @@ if ($LASTEXITCODE -eq 0) {
     }
 
     # If no changes and no unpushed commits, just pull
-    $pullSuccess = Invoke-SafePull -Branch $currentBranch
-    if (-not $pullSuccess) {
-        Write-Host "Failed to sync with remote." -ForegroundColor Red
-    }
+    Write-Host "Pulling latest changes from origin/$currentBranch..." -ForegroundColor Cyan
+    git pull origin $currentBranch
     Start-Sleep -Seconds 3
     return
 }
@@ -182,9 +109,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Pull latest changes from the remote repository
-$pullSuccess = Invoke-SafePull -Branch $currentBranch
-if (-not $pullSuccess) {
-    Write-Host "Failed to sync with remote." -ForegroundColor Red
+Write-Host "Pulling latest changes from origin/$currentBranch..." -ForegroundColor Cyan
+git pull origin $currentBranch
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to pull changes. Resolve conflicts if any, and rerun the script." -ForegroundColor Red
     Start-Sleep -Seconds 3
     return
 }
