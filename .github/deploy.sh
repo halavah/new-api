@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Navigate to the directory where the script is located
-cd "$(dirname "$0")"
+# Navigate to the repository root (parent of .github directory)
+cd "$(dirname "$0")/.."
 
 # Get current branch name
 echo "Detecting current Git branch..."
